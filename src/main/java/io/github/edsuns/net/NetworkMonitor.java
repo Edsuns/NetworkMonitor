@@ -49,6 +49,10 @@ public class NetworkMonitor {
             return !isSuccessful() && (httpResponseCode >= 200) && (httpResponseCode <= 399);
         }
 
+        public boolean isRedirectPortal() {
+            return redirectUrl != null;
+        }
+
         public boolean isFailed() {
             return !isSuccessful() && !isPortal();
         }
@@ -143,7 +147,7 @@ public class NetworkMonitor {
                 } else {
                     mResult = sendHttpProbe(probeHttpUrl, false);
                 }
-                if (mResult.isPortal() || mResult.isSuccessful()) {
+                if (mResult.isSuccessful() || mResult.isRedirectPortal()) {
                     // Stop waiting immediately if https succeeds or if http finds a portal.
                     while (latch.getCount() > 0) {
                         latch.countDown();
@@ -165,15 +169,21 @@ public class NetworkMonitor {
         final ProbeResult httpResult = httpProbe.result();
         final ProbeResult httpsResult = httpsProbe.result();
         // Look for a conclusive probe result first.
-        if (httpResult.isPortal() || httpResult.isSuccessful()) {
+        if (httpResult.isSuccessful() || httpResult.isRedirectPortal()) {
             return httpResult;
         }
-        if (httpsResult.isPortal() || httpsResult.isSuccessful()) {
+        if (httpsResult.isSuccessful() || httpsResult.isRedirectPortal()) {
+            return httpsResult;
+        }
+        if (httpResult.isPortal()) {
+            return httpResult;
+        }
+        if (httpsResult.isPortal()) {
             return httpsResult;
         }
         // Use a fallback probe to try again portal detection.
         ProbeResult result = sendHttpProbe(fallbackHttpsUrl, true);
-        if (result.isPortal() || result.isSuccessful()) {
+        if (result.isSuccessful() || result.isPortal()) {
             return result;
         }
         // Otherwise, wait until https probe completes and use its result.
